@@ -3,4 +3,6 @@ export const customUrls: RegExp[] = [
   /.*diffcheck\.io$/,
   /.*steamdb\.info$/,
   /.*preset\.io$/,
+  /.*docker\.io$/,
+  /.*pypi\.org$/
 ]
