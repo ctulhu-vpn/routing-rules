@@ -1,0 +1,7 @@
+# Ctulhu-maintained additions. One domain suffix per line.
+ant.design
+diffcheck.io
+docker.io
+preset.io
+pypi.org
+steamdb.info

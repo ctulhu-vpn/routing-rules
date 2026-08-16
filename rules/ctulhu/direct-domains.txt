@@ -1,0 +1,3 @@
+# Direct exceptions take priority over every upstream proxy-domain rule.
+local
+localhost
