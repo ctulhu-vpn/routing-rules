@@ -5,3 +5,4 @@ docker.io
 preset.io
 pypi.org
 steamdb.info
+googlevideo.com
