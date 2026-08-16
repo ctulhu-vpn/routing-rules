@@ -1,0 +1,83 @@
+name: Verify and publish routing rules
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: routing-rules-v1
+          path: dist/v1
+          if-no-files-found: error
+
+  legacy-pac:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: routing-rules-v1
+          path: dist/v1
+      - name: Publish legacy PAC build branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin build:build || git branch build
+          git worktree add /tmp/ctulhu-routing-rules-build build
+          cp dist/v1/pac/proxy.pac /tmp/ctulhu-routing-rules-build/proxy.pac
+          git -C /tmp/ctulhu-routing-rules-build add proxy.pac
+          if ! git -C /tmp/ctulhu-routing-rules-build diff --cached --quiet; then
+            git -C /tmp/ctulhu-routing-rules-build commit -m "build: update legacy proxy.pac"
+            git -C /tmp/ctulhu-routing-rules-build push origin build
+          fi
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run setup:mihomo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build production artifacts
+        run: npm run build
+        env:
+          ROUTING_RULES_PUBLIC_BASE_URL: ${{ vars.ROUTING_RULES_PUBLIC_BASE_URL }}
+      - name: Pack immutable snapshot
+        run: tar -C dist -czf routing-rules-v1.tar.gz v1
+      - name: Create immutable GitHub release
+        run: gh release create "$GITHUB_REF_NAME" routing-rules-v1.tar.gz --verify-tag --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

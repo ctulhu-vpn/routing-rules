@@ -1,24 +1,28 @@
 {
-  "name": "ru-proxy-pac",
-  "version": "1.0.0",
-  "description": "Shadowsocks PAC (Proxy Auto-Configuration file) for Russia",
-  "main": "src/pac.ts",
+  "name": "@ctulhu-vpn/routing-rules",
+  "version": "1.1.0",
+  "description": "Versioned routing-rule artifacts for Ctulhu VPN clients",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
   "scripts": {
     "style": "prettier . --write",
-    "serve": "node service/serve-local.mjs",
-    "build": "node service/esbuild-config.mjs prod",
-    "test": "node service/esbuild-config.mjs test && node build/proxy.pac",
-    "update-filters": "node service/update-re-filter.mjs"
+    "setup:mihomo": "node scripts/install-mihomo.mjs",
+    "build": "node scripts/build.mjs",
+    "test": "node --test",
+    "check": "npm run setup:mihomo && npm run build && npm test && prettier . --check",
+    "update-upstream": "node scripts/update-upstream.mjs"
   },
   "keywords": [
-    "pac"
+    "mihomo",
+    "pac",
+    "routing-rules",
+    "shadowrocket"
   ],
   "author": "Ctulhu VPN",
   "license": "MIT",
   "devDependencies": {
-    "esbuild": "^0.25.2",
-    "gh-pages": "^6.2.0",
-    "prettier": "3.4.2",
-    "typescript": "^5.7.2"
+    "prettier": "3.4.2"
   }
 }

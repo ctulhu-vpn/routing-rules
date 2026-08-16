@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "repository": "https://github.com/1andrevich/Re-filter-lists",
+    "commit": "7efa856a46bcc54e92adf9ab7addb1dfa6c0b3b7",
+    "committedAt": "2026-08-04T09:25:23Z",
+    "license": "MIT"
+  },
+  "files": [
+    {
+      "path": "domains_all.lst",
+      "kind": "domain",
+      "minimumEntries": 50000,
+      "sha256": "2955eaed43342e810a02986626fc99291296ede0a92d7854d1b92c33f03bdbee"
+    },
+    {
+      "path": "community.lst",
+      "kind": "domain",
+      "minimumEntries": 500,
+      "sha256": "01191b2a7e7c0acb2c85839fab9e21f187a89621c3a4dea45c46eccbcb6db6d6"
+    },
+    {
+      "path": "community_ips.lst",
+      "kind": "ipcidr",
+      "minimumEntries": 5,
+      "sha256": "cab02c1a4e77cd811439678b45a7418965bc44acb36272d41f95e594dfe8acbf"
+    },
+    {
+      "path": "discord_ips.lst",
+      "kind": "ipcidr",
+      "minimumEntries": 1000,
+      "sha256": "ec74cf7f9a0504e8428dee904919d5cb2d3a28f3aea64101568069c77b3d97e6"
+    }
+  ]
+}
