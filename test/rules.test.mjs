@@ -96,17 +96,29 @@ test("direct exceptions take precedence over exact upstream rules", async (conte
   assert.equal(rules.proxyIpCidrs.includes("9.9.9.9/32"), true)
 })
 
-test("writes deterministic Shadowrocket and PAC artifacts", async (context) => {
+test("writes suffix rules consistently for every client", async (context) => {
   const root = await fixtureRepository()
   context.after(() => rm(root, { recursive: true, force: true }))
   const output = join(root, "dist/v1")
   const rules = await loadCanonicalRules(root)
-  await writeTextArtifacts(
+  const intermediate = await writeTextArtifacts(
     root,
     output,
     rules,
     "https://hub.example.invalid/routing-rules/v1"
   )
+
+  const mihomoDomains = await readFile(
+    join(intermediate, "domains.txt"),
+    "utf8"
+  )
+  const mihomoDirectDomains = await readFile(
+    join(intermediate, "direct-domains.txt"),
+    "utf8"
+  )
+  assert.match(mihomoDomains, /^\+\.blocked\.example$/m)
+  assert.match(mihomoDomains, /^\+\.extra\.example$/m)
+  assert.match(mihomoDirectDomains, /^\+\.direct\.example$/m)
 
   const module = await readFile(
     join(output, "shadowrocket/ctulhu-smart.sgmodule"),

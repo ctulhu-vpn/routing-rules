@@ -271,6 +271,12 @@ function shadowrocketIpList(values, description) {
   return `# ${description}\n${values.map((value) => `${value.includes(":") ? "IP-CIDR6" : "IP-CIDR"},${value},no-resolve`).join("\n")}\n`
 }
 
+function mihomoDomainList(values) {
+  // Mihomo's domain behavior treats bare values as exact hosts. The `+.`
+  // wildcard preserves the repository contract that domain inputs are suffixes.
+  return `${values.map((value) => `+.${value}`).join("\n")}\n`
+}
+
 function shadowrocketModule(publicBaseUrl) {
   const base = publicBaseUrl.replace(/\/$/, "")
   return `#!name=Ctulhu Smart Routing
@@ -359,7 +365,7 @@ export async function writeTextArtifacts(
   await rm(intermediate, { recursive: true, force: true })
   await write(
     join(intermediate, "direct-domains.txt"),
-    `${rules.directDomains.join("\n")}\n`
+    mihomoDomainList(rules.directDomains)
   )
   await write(
     join(intermediate, "direct-ipcidr.txt"),
@@ -367,7 +373,7 @@ export async function writeTextArtifacts(
   )
   await write(
     join(intermediate, "domains.txt"),
-    `${rules.proxyDomains.join("\n")}\n`
+    mihomoDomainList(rules.proxyDomains)
   )
   await write(
     join(intermediate, "ipcidr.txt"),

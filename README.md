@@ -14,6 +14,8 @@ primary artifacts.
 - Upstream content is fetched only from the exact SHA in
   [`upstream.lock.json`](upstream.lock.json).
 - Proxy inputs may contain only domain and public IP/CIDR records.
+- Domain records are suffix rules: the base domain and all of its subdomains
+  must match consistently in every generated client format.
 - Ctulhu direct exceptions take priority over matching proxy records.
 - `ipsum.lst` is intentionally excluded from the default profile because broad
   shared-CDN networks can proxy unrelated traffic.
