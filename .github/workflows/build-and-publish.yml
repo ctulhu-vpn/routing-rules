@@ -27,8 +27,8 @@ jobs:
       ROUTING_RULES_PUBLIC_BASE_URL: ${{ vars.ROUTING_RULES_PUBLIC_BASE_URL || 'https://hub.example.invalid/routing-rules/v1' }}
       ROUTING_RULES_SOURCE_COMMIT: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -46,7 +46,7 @@ jobs:
         run: npm run check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: routing-rules-v1-${{ github.sha }}
           path: dist/v1
@@ -61,10 +61,10 @@ jobs:
     outputs:
       release_id: ${{ steps.release.outputs.release_id }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: routing-rules-v1-${{ github.sha }}
           path: dist/v1
@@ -143,10 +143,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v6
+      - uses: actions/download-artifact@v8
         with:
           name: routing-rules-v1-${{ github.sha }}
           path: dist/v1
