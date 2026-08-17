@@ -390,7 +390,8 @@ export async function writeManifest(
   outputRoot,
   rules,
   artifactPaths,
-  mihomoVersion
+  mihomoVersion,
+  sourceCommit
 ) {
   const artifacts = []
   for (const path of artifactPaths.sort())
@@ -399,6 +400,14 @@ export async function writeManifest(
     schemaVersion: 1,
     rulesVersion: "v1",
     generatedAt: rules.lock.source.committedAt,
+    ...(sourceCommit
+      ? {
+          source: {
+            repository: "https://github.com/ctulhu-vpn/routing-rules",
+            commit: sourceCommit,
+          },
+        }
+      : {}),
     upstream: {
       repository: rules.lock.source.repository,
       commit: rules.lock.source.commit,

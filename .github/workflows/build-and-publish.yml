@@ -1,10 +1,21 @@
 name: Verify and publish routing rules
 
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('Verify PR #{0}', github.event.pull_request.number)
+      || (github.ref == 'refs/heads/main'
+          && format('Publish main {0}', github.sha)
+          || format('Publish {0}', github.ref_name)) }}
+
 on:
   pull_request:
   push:
     branches: [main]
     tags: ["v*"]
+
+concurrency:
+  group: routing-rules-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -12,21 +23,115 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      ROUTING_RULES_PUBLIC_BASE_URL: ${{ vars.ROUTING_RULES_PUBLIC_BASE_URL || 'https://hub.example.invalid/routing-rules/v1' }}
+      ROUTING_RULES_SOURCE_COMMIT: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run check
+      - name: Require the production public URL for publication
+        if: github.event_name == 'push'
+        env:
+          CONFIGURED_PUBLIC_BASE_URL: ${{ vars.ROUTING_RULES_PUBLIC_BASE_URL }}
+        run: |
+          [[ -n "${CONFIGURED_PUBLIC_BASE_URL}" ]] || {
+            echo "ROUTING_RULES_PUBLIC_BASE_URL repository variable is required" >&2
+            exit 1
+          }
+      - name: Validate, build, and test
+        run: npm run check
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
-          name: routing-rules-v1
+          name: routing-rules-v1-${{ github.sha }}
           path: dist/v1
           if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.release.outputs.release_id }}
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          name: routing-rules-v1-${{ github.sha }}
+          path: dist/v1
+
+      - name: Derive immutable release id
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            release_id="main-${GITHUB_SHA}"
+            prerelease=true
+          else
+            release_id="${GITHUB_REF_NAME}"
+            prerelease=false
+          fi
+          printf 'release_id=%s\n' "${release_id}" >> "${GITHUB_OUTPUT}"
+          printf 'prerelease=%s\n' "${prerelease}" >> "${GITHUB_OUTPUT}"
+
+      - name: Pack immutable snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --sort=name \
+            --mtime='UTC 1970-01-01' \
+            --owner=0 --group=0 --numeric-owner \
+            -C dist -cf - v1 \
+            | gzip -n > routing-rules-v1.tar.gz
+
+      - name: Create or verify immutable GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          if gh release view "${RELEASE_ID}" >/dev/null 2>&1; then
+            install -d existing-release
+            gh release download "${RELEASE_ID}" \
+              --pattern routing-rules-v1.tar.gz \
+              --dir existing-release
+            cmp routing-rules-v1.tar.gz existing-release/routing-rules-v1.tar.gz
+            echo "Verified existing immutable release ${RELEASE_ID}"
+            exit 0
+          fi
+
+          arguments=(
+            "${RELEASE_ID}"
+            "routing-rules-v1.tar.gz#routing-rules-v1.tar.gz"
+            --title "Routing rules ${RELEASE_ID}"
+            --notes "Automated publication of commit ${GITHUB_SHA}."
+          )
+          if [[ "${PRERELEASE}" == true ]]; then
+            arguments+=(--target "${GITHUB_SHA}" --prerelease)
+          else
+            arguments+=(--verify-tag)
+          fi
+          gh release create "${arguments[@]}"
+
+      - name: Record publication summary
+        env:
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+        run: |
+          {
+            echo "### Immutable routing-rules release"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Release: [\`${RELEASE_ID}\`](https://github.com/ctulhu-vpn/routing-rules/releases/tag/${RELEASE_ID})"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
   legacy-pac:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -35,12 +140,12 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v6
         with:
-          name: routing-rules-v1
+          name: routing-rules-v1-${{ github.sha }}
           path: dist/v1
       - name: Publish legacy PAC build branch
         run: |
@@ -55,29 +160,66 @@ jobs:
             git -C /tmp/ctulhu-routing-rules-build push origin build
           fi
 
-  release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: verify
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.HUB_WORKFLOW_TOKEN }}
+      RELEASE_ID: ${{ needs.publish.outputs.release_id }}
+      HUB_REPOSITORY: ctulhu-vpn/hub
+      HUB_WORKFLOW: deploy-routing-rules.yml
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - run: npm run setup:mihomo
+      - name: Start Hub production rollout
+        id: dispatch
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${GH_TOKEN}" ]] || {
+            echo "HUB_WORKFLOW_TOKEN must grant Actions read/write on ctulhu-vpn/hub" >&2
+            exit 1
+          }
+          printf 'requested_at=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            >> "${GITHUB_OUTPUT}"
+          gh workflow run "${HUB_WORKFLOW}" \
+            --repo "${HUB_REPOSITORY}" \
+            --ref main \
+            --field "release_id=${RELEASE_ID}"
+
+      - name: Wait for Hub production rollout
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build production artifacts
-        run: npm run build
-        env:
-          ROUTING_RULES_PUBLIC_BASE_URL: ${{ vars.ROUTING_RULES_PUBLIC_BASE_URL }}
-      - name: Pack immutable snapshot
-        run: tar -C dist -czf routing-rules-v1.tar.gz v1
-      - name: Create immutable GitHub release
-        run: gh release create "$GITHUB_REF_NAME" routing-rules-v1.tar.gz --verify-tag --generate-notes
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUESTED_AT: ${{ steps.dispatch.outputs.requested_at }}
+        run: |
+          set -euo pipefail
+          expected_title="Deploy routing rules ${RELEASE_ID}"
+          run_id=""
+          for attempt in {1..30}; do
+            run_id=$(gh run list \
+              --repo "${HUB_REPOSITORY}" \
+              --workflow "${HUB_WORKFLOW}" \
+              --event workflow_dispatch \
+              --limit 20 \
+              --json databaseId,displayTitle,createdAt \
+              --jq ".[] | select(.displayTitle == \"${expected_title}\" and .createdAt >= \"${REQUESTED_AT}\") | .databaseId" \
+              | head -n 1)
+            [[ -n "${run_id}" ]] && break
+            sleep 2
+          done
+          [[ -n "${run_id}" ]] || {
+            echo "Hub deployment run did not appear for ${RELEASE_ID}" >&2
+            exit 1
+          }
+
+          run_url="https://github.com/${HUB_REPOSITORY}/actions/runs/${run_id}"
+          {
+            echo "### Production rollout"
+            echo
+            echo "- Hub workflow: [${run_id}](${run_url})"
+            echo "- Stable URL changes only after external verification."
+          } >> "${GITHUB_STEP_SUMMARY}"
+          gh run watch "${run_id}" \
+            --repo "${HUB_REPOSITORY}" \
+            --interval 10 \
+            --exit-status

@@ -82,9 +82,41 @@ dist/v1/
   pac/proxy.pac
 ```
 
-`manifest.json` records the upstream SHA, input counts, pinned Mihomo version,
-artifact sizes, and SHA-256 digests. Generated artifacts are ignored by Git and
-published from CI as an immutable release.
+`manifest.json` records the exact routing-rules source SHA for CI builds, the
+upstream SHA, input counts, pinned Mihomo version, artifact sizes, and SHA-256
+digests. Generated artifacts are ignored by Git and published from CI as an
+immutable release.
+
+## Automatic publication
+
+Every successful push to `main` performs the complete production publication:
+
+1. validate, build, and test the exact commit;
+2. create or verify the immutable prerelease `main-<40-hex-commit>`;
+3. start the `ctulhu-vpn/hub` production rollout;
+4. wait for its external HTTPS verification, atomic stable-alias switch, and
+   final result.
+
+The source workflow stays red if the Hub rollout fails or rolls back, so a
+green `main` publication means that the stable client URL was verified. A
+`v*` tag may still create a human-friendly milestone release, but it is not
+required for normal rule publication.
+
+The archive is packed deterministically, and `manifest.source.commit` equals
+the commit in its automatic release id. A retry can therefore verify exact
+archive equality instead of replacing an existing asset.
+
+Repository configuration:
+
+- Actions variable `ROUTING_RULES_PUBLIC_BASE_URL` is the credential-free
+  production HTTPS URL ending in `/routing-rules/v1`;
+- Actions secret `HUB_WORKFLOW_TOKEN` is a fine-grained token limited to the
+  `ctulhu-vpn/hub` repository with Actions read/write access.
+
+The token can start and observe only the Hub workflow. Production filesystem
+access, public-origin settings, environment approval, verification, activation,
+and rollback remain owned by the Hub repository and its `production`
+Environment.
 
 ## Publication contract
 
@@ -96,6 +128,11 @@ reference mutable GitHub `main` or `releases/latest`. Publication order is:
 3. verify every artifact through external HTTPS;
 4. atomically switch the stable alias;
 5. preserve the previous snapshot for rollback.
+
+If automatic deployment must be repeated, run the Hub `Deploy routing rules`
+workflow with the already published `main-<commit>` release id. Re-running the
+source workflow verifies that an existing release contains byte-identical
+content and never overwrites it.
 
 The upstream snapshot is distributed under its MIT license, copied at
 [`vendor/refilter/LICENSE`](vendor/refilter/LICENSE). Ctulhu source and outputs

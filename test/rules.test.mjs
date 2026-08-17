@@ -141,4 +141,25 @@ test("pinned production inputs pass integrity and minimum-size checks", async ()
   assert.ok(rules.proxyDomains.length > 50000)
   assert.ok(rules.proxyIpCidrs.length > 1000)
   assert.ok(rules.proxyDomains.includes("docker.io"))
+  assert.ok(rules.proxyDomains.includes("googlevideo.com"))
+})
+
+test("main publication waits for the Hub production rollout", async () => {
+  const workflow = await readFile(
+    join(repositoryRoot, ".github/workflows/build-and-publish.yml"),
+    "utf8"
+  )
+  assert.match(workflow, /main-\$\{GITHUB_SHA\}/)
+  assert.match(workflow, /ROUTING_RULES_SOURCE_COMMIT/)
+  assert.match(workflow, /CONFIGURED_PUBLIC_BASE_URL/)
+  assert.match(workflow, /actions\/upload-artifact@v6/)
+  assert.match(workflow, /actions\/download-artifact@v6/)
+  assert.match(workflow, /--prerelease/)
+  assert.match(workflow, /gzip -n/)
+  assert.match(workflow, /HUB_WORKFLOW_TOKEN/)
+  assert.match(workflow, /gh workflow run/)
+  assert.match(workflow, /gh run watch/)
+  assert.match(workflow, /createdAt/)
+  assert.match(workflow, /--exit-status/)
+  assert.equal(workflow.includes("releases/latest"), false)
 })

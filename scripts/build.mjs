@@ -19,6 +19,10 @@ if (!/^https:\/\/[^/]+\/routing-rules\/v1\/?$/.test(publicBaseUrl)) {
     "ROUTING_RULES_PUBLIC_BASE_URL must be an HTTPS /routing-rules/v1 URL"
   )
 }
+const sourceCommit = process.env.ROUTING_RULES_SOURCE_COMMIT
+if (sourceCommit && !/^[0-9a-f]{40}$/.test(sourceCommit)) {
+  throw new Error("ROUTING_RULES_SOURCE_COMMIT must be a 40-hex commit SHA")
+}
 
 const toolchain = JSON.parse(
   await readFile(join(root, "toolchain.lock.json"), "utf8")
@@ -77,7 +81,8 @@ const manifest = await writeManifest(
   outputRoot,
   rules,
   artifactPaths,
-  toolchain.mihomoVersion
+  toolchain.mihomoVersion,
+  sourceCommit
 )
 console.log(
   `Built ${manifest.counts.proxyDomains} proxy domains and ${manifest.counts.proxyIpCidrs} proxy networks`
