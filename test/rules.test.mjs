@@ -149,6 +149,10 @@ test("main publication waits for the Hub production rollout", async () => {
     join(repositoryRoot, ".github/workflows/build-and-publish.yml"),
     "utf8"
   )
+  const publishJob = workflow.slice(
+    workflow.indexOf("  publish:"),
+    workflow.indexOf("  legacy-pac:")
+  )
   assert.match(workflow, /main-\$\{GITHUB_SHA\}/)
   assert.match(workflow, /ROUTING_RULES_SOURCE_COMMIT/)
   assert.match(workflow, /CONFIGURED_PUBLIC_BASE_URL/)
@@ -161,5 +165,6 @@ test("main publication waits for the Hub production rollout", async () => {
   assert.match(workflow, /gh run watch/)
   assert.match(workflow, /createdAt/)
   assert.match(workflow, /--exit-status/)
+  assert.match(publishJob, /actions\/checkout@v6/)
   assert.equal(workflow.includes("releases/latest"), false)
 })
