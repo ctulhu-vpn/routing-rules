@@ -1,5 +1,8 @@
 # Ctulhu-maintained additions. One domain suffix per line.
 ant.design
+anthropic.com
+claude.com
+claudeusercontent.com
 diffcheck.io
 docker.io
 preset.io
