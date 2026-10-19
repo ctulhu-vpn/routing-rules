@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "source": {
     "repository": "https://github.com/1andrevich/Re-filter-lists",
-    "commit": "7efa856a46bcc54e92adf9ab7addb1dfa6c0b3b7",
-    "committedAt": "2026-08-04T09:25:23Z",
+    "commit": "0ded65dfd74abc49156d7456a531dff1665640cc",
+    "committedAt": "2026-10-19T13:00:26Z",
     "license": "MIT"
   },
   "files": [
@@ -11,13 +11,13 @@
       "path": "domains_all.lst",
       "kind": "domain",
       "minimumEntries": 50000,
-      "sha256": "2955eaed43342e810a02986626fc99291296ede0a92d7854d1b92c33f03bdbee"
+      "sha256": "f4e8b3567f1d2f8c3a09eb073bd2b1e65a0c8af583de21bd06db7170d4e08016"
     },
     {
       "path": "community.lst",
       "kind": "domain",
       "minimumEntries": 500,
-      "sha256": "01191b2a7e7c0acb2c85839fab9e21f187a89621c3a4dea45c46eccbcb6db6d6"
+      "sha256": "123566241d6e2c522b79baf93c227a2de924da1f7543be82d78365b75657d26c"
     },
     {
       "path": "community_ips.lst",
