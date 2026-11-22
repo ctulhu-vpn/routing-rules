@@ -10,3 +10,4 @@ pypi.org
 steamdb.info
 googlevideo.com
 wikihow.com
+speed.cloudflare.com
